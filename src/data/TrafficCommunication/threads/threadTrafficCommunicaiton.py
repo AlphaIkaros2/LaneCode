@@ -52,7 +52,6 @@ class threadTrafficCommunication(ThreadWithStop):
     def locsysConnect(self, deviceID, IPandPORT):
         """In this method we get the port and ip and we connect the reactor"""
         ip, port = IPandPORT.split(":")
-        print(ip, port, deviceID)
         self.tcp_factory_locsys = tcpLocsys(id, self.queue)
         self.reactor.connectTCP(ip, int(port), self.tcp_factory_locsys)
 

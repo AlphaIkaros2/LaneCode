@@ -38,8 +38,12 @@ from src.utils.messages.allMessages import (
     Recording,
     Record,
     Config,
+    SpeedMotor,
+    SteerMotor,
+    EngineRun,
 )
 from src.templates.threadwithstop import ThreadWithStop
+from src.hardware.camera.threads.laneDetection import middle_point
 
 
 class threadCamera(ThreadWithStop):
@@ -106,6 +110,25 @@ class threadCamera(ThreadWithStop):
     def stop(self):
         if self.recording:
             self.video_writer.release()
+        self.cap.release()
+
+        self.queuesList[SteerMotor.Queue.value].put(
+            {
+                "Owner": SteerMotor.Owner.value,
+                "msgID": SteerMotor.msgID.value,
+                "msgType": SteerMotor.msgType.value,
+                "msgValue": 0.0,
+            }
+        )
+        self.queuesList[SpeedMotor.Queue.value].put(
+            {
+                "Owner": SpeedMotor.Owner.value,
+                "msgID": SpeedMotor.msgID.value,
+                "msgType": SpeedMotor.msgType.value,
+                "msgValue": 0.0,
+            }
+        )
+        time.sleep(2)
         super(threadCamera, self).stop()
 
     # =============================== CONFIG ==============================================
@@ -114,7 +137,6 @@ class threadCamera(ThreadWithStop):
         while self.pipeRecvConfig.poll():
             message = self.pipeRecvConfig.recv()
             message = message["value"]
-            print(message)
             self.camera.set_controls(
                 {
                     "AeEnable": False,
@@ -128,6 +150,8 @@ class threadCamera(ThreadWithStop):
     def run(self):
         """This function will run while the running flag is True. It captures the image from camera and make the required modifies and then it send the data to process gateway."""
         var = True
+        STEER = 0.0
+        SPEED = 20.0
         while self._running:
             try:
                 if self.pipeRecvRecord.poll():
@@ -153,31 +177,72 @@ class threadCamera(ThreadWithStop):
             if var:
                 if self.recording == True:
                     cv2_image = cv2.cvtColor(request, cv2.COLOR_RGB2BGR)
-                    self.video_writer.write(cv2_image)
-                request2 = self.camera.capture_array(
-                    "lores"
-                )  # Will capture an array that can be used by OpenCV library
-                request2 = request2[:360, :]
-                _, encoded_img = cv2.imencode(".jpg", request2)
-                _, encoded_big_img = cv2.imencode(".jpg", request)
-                image_data_encoded = base64.b64encode(encoded_img).decode("utf-8")
-                image_data_encoded2 = base64.b64encode(encoded_big_img).decode("utf-8")
-                self.queuesList[mainCamera.Queue.value].put(
-                    {
-                        "Owner": mainCamera.Owner.value,
-                        "msgID": mainCamera.msgID.value,
-                        "msgType": mainCamera.msgType.value,
-                        "msgValue": image_data_encoded2,
-                    }
-                )
-                self.queuesList[serialCamera.Queue.value].put(
-                    {
-                        "Owner": serialCamera.Owner.value,
-                        "msgID": serialCamera.msgID.value,
-                        "msgType": serialCamera.msgType.value,
-                        "msgValue": image_data_encoded,
-                    }
-                )
+                    self.video_writer.write(cv2_image)                  
+                # request2 = self.camera.capture_array(
+                #     "lores"
+                # )  # Will capture an array that can be used by OpenCV library
+                # request2 = request2[:360, :]
+                # request2 = self.camera.capture_array("main")
+
+                self.cap = cv2.VideoCapture("/home/pi/Downloads/lane.mp4")
+                while self.cap.isOpened():
+                    ret, framee = self.cap.read()
+                    framee = cv2.resize(framee, (720,405))
+                    request2 = cv2.resize(framee, (480, 360))    
+                    if ret == True:
+                        STEER = float(middle_point(framee)) 
+                        print(STEER)
+                        #pass
+                    STEER /= -3.
+                    if STEER > 20.0:
+                        STEER = 20.0
+                    if STEER < -15.0:
+                        STEER = -15.0
+                    print("converted_steer", STEER)
+                    self.queuesList[EngineRun.Queue.value].put(
+                        {
+                            "Owner": EngineRun.Owner.value,
+                            "msgID": EngineRun.msgID.value,
+                            "msgType": EngineRun.msgType.value,
+                            "msgValue": True,
+                        }
+                    )
+                    self.queuesList[SteerMotor.Queue.value].put(
+                        {
+                            "Owner": SteerMotor.Owner.value,
+                            "msgID": SteerMotor.msgID.value,
+                            "msgType": SteerMotor.msgType.value,
+                            "msgValue": float(STEER),
+                        }
+                    )
+                    self.queuesList[SpeedMotor.Queue.value].put(
+                        {
+                            "Owner": SpeedMotor.Owner.value,
+                            "msgID": SpeedMotor.msgID.value,
+                            "msgType": SpeedMotor.msgType.value,
+                            "msgValue": 25.0,
+                        }
+                    )
+                    _, encoded_img = cv2.imencode(".jpg", request2)
+                    image_data_encoded = base64.b64encode(encoded_img).decode("utf-8")
+                    self.queuesList[serialCamera.Queue.value].put(
+                        {
+                            "Owner": serialCamera.Owner.value,
+                            "msgID": serialCamera.msgID.value,
+                            "msgType": serialCamera.msgType.value,
+                            "msgValue": image_data_encoded,
+                        }
+                    )
+                # _, encoded_big_img = cv2.imencode(".jpg", request)    
+                # image_data_encoded2 = base64.b64encode(encoded_big_img).decode("utf-8")
+                # self.queuesList[mainCamera.Queue.value].put(
+                #     {
+                #         "Owner": mainCamera.Owner.value,
+                #         "msgID": mainCamera.msgID.value,
+                #         "msgType": mainCamera.msgType.value,
+                #         "msgValue": image_data_encoded2,
+                #     }
+                # )
             var = not var
 
     # =============================== START ===============================================
@@ -197,3 +262,5 @@ class threadCamera(ThreadWithStop):
         )
         self.camera.configure(config)
         self.camera.start()
+
+

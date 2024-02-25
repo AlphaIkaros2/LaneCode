@@ -32,7 +32,7 @@ import sys
 sys.path.append(".")
 from multiprocessing import Queue, Event
 import logging
-
+import cv2
 
 # ===================================== PROCESS IMPORTS ==================================
 from src.gateway.processGateway import processGateway
@@ -60,10 +60,10 @@ queueList = {
 
 logging = logging.getLogger()
 
-TrafficCommunication = True
+TrafficCommunication = False 
 Camera = True
 PCCommunicationDemo = True
-CarsAndSemaphores = True
+CarsAndSemaphores = False
 SerialHandler = True
 # ===================================== SETUP PROCESSES ==================================
 
@@ -110,6 +110,16 @@ for process in allProcesses:
 blocker = Event()
 try:
     blocker.wait()
+    while True:
+        img = {"msgValue": 1}
+        while type(img["msgValue"]) != type(":text"):
+            img = queueList["General"].get()
+        image_data = base64.b64decode(img["msgValue"])
+        img = np.frombuffer(image_data, dtype=np.uint8)
+        image = cv2.imdecode(img, cv2.IMREAD_COLOR)
+        cv2.imshow("window", image)
+        cv2.waitKey(0)
+
 except KeyboardInterrupt:
     print("\nCatching a KeyboardInterruption exception! Shutdown all processes.\n")
     for proc in allProcesses:

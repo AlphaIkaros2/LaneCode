@@ -59,6 +59,7 @@ class threadRead(ThreadWithStop):
     def run(self):
         while self._running:
             read_chr = self.serialCon.read()
+            #print(read_chr)
             try:
                 read_chr = read_chr.decode("ascii")
                 if read_chr == "@":

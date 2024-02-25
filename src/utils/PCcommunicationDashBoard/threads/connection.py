@@ -72,7 +72,6 @@ class SingleConnection(protocol.Protocol):
                 self.factory.connection = None
         else:
             dataJSON = json.loads(data.decode())
-            print(dataJSON)
             if dataJSON["action"] == "startEngine":
                 self.factory.queues[EngineRun.Queue.value].put(
                     {
@@ -91,7 +90,6 @@ class SingleConnection(protocol.Protocol):
                         "msgValue": dataJSON,
                     }
                 )
-            # print("Received from", self.factory.connectiondata, " : ", data.decode())
 
     # ===================================== SEND DATA ==========================================
     def send_data(self, messageValue, messageType, messageOwner, messageId):

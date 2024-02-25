@@ -116,5 +116,5 @@ if __name__ == "__main__":
     image = cv2.imdecode(img, cv2.IMREAD_COLOR)
     if debugg:
         logger.warning("got")
-    cv2.imwrite("test.jpg", image)
+    time.sleep(5)
     process.stop()

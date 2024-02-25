@@ -146,6 +146,11 @@ class threadWrite(ThreadWithStop):
     # ===================================== RUN ==========================================
     def run(self):
         """In this function we check if we got the enable engine signal. After we got it we will start getting messages from raspberry PI. It will transform them into NUCLEO commands and send them."""
+        #IMU_msg = {"action": "5", "activate": False}
+        #command_msg = self.messageConverter.get_command(**IMU_msg)
+        #print(command_msg)
+        #self.serialCom.write(command_msg.encode("ascii"))
+
         while self._running:
             try:
                 if self.pipeRecvRunningSignal.poll():
@@ -220,10 +225,10 @@ class threadWrite(ThreadWithStop):
             self.i += self.j
             if self.i >= 21.0:
                 self.i = 21.0
-                self.s = self.i / 7
+                self.s = self.i / 3
                 self.j *= -1
             if self.i <= -21.0:
                 self.i = -21.0
-                self.s = self.i / 7
+                self.s = self.i / 3
                 self.j *= -1.0
             threading.Timer(0.01, self.example).start()
